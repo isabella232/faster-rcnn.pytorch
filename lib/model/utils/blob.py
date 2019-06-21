@@ -36,7 +36,12 @@ def prep_im_for_blob(im, pixel_means, target_size, max_size):
     """Mean subtract and scale an image for use in a blob."""
 
     im = im.astype(np.float32, copy=False)
-    im -= pixel_means
+    im_orig = im.astype(np.float32, copy=True)
+    if im_orig.shape[2] == 4:
+      # in the event you have an image with alpha channels, drop it for now
+      im_orig = im_orig[:, :, :3]
+    im_orig -= pixel_means
+    im = im_orig
     # im = im[:, :, ::-1]
     im_shape = im.shape
     im_size_min = np.min(im_shape[0:2])

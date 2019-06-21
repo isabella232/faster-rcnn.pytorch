@@ -53,7 +53,7 @@ def parse_args():
                       default='pascal_voc', type=str)
   parser.add_argument('--cfg', dest='cfg_file',
                       help='optional config file',
-                      default='cfgs/vgg16.yml', type=str)
+                      default='cfgs/res101.yml', type=str)
   parser.add_argument('--net', dest='net',
                       help='vgg16, res50, res101, res152',
                       default='res101', type=str)
@@ -62,10 +62,10 @@ def parse_args():
                       nargs=argparse.REMAINDER)
   parser.add_argument('--load_dir', dest='load_dir',
                       help='directory to load models',
-                      default="/srv/share/jyang375/models")
+                      default="models")
   parser.add_argument('--image_dir', dest='image_dir',
                       help='directory to load images for demo',
-                      default="images")
+                      default="data/VOCdevkit2007/VOC2007/JPEGImages")
   parser.add_argument('--cuda', dest='cuda',
                       help='whether use CUDA',
                       action='store_true')
@@ -80,19 +80,19 @@ def parse_args():
                       default=0, type=int)
   parser.add_argument('--checksession', dest='checksession',
                       help='checksession to load model',
-                      default=1, type=int)
+                      default=5, type=int)
   parser.add_argument('--checkepoch', dest='checkepoch',
                       help='checkepoch to load network',
-                      default=1, type=int)
+                      default=70, type=int)
   parser.add_argument('--checkpoint', dest='checkpoint',
                       help='checkpoint to load network',
-                      default=10021, type=int)
+                      default=9, type=int)
   parser.add_argument('--bs', dest='batch_size',
                       help='batch_size',
                       default=1, type=int)
   parser.add_argument('--vis', dest='vis',
                       help='visualization mode',
-                      action='store_true')
+                      action='store_true',default=True)
   parser.add_argument('--webcam_num', dest='webcam_num',
                       help='webcam ID number',
                       default=-1, type=int)
@@ -103,6 +103,7 @@ def parse_args():
 lr = cfg.TRAIN.LEARNING_RATE
 momentum = cfg.TRAIN.MOMENTUM
 weight_decay = cfg.TRAIN.WEIGHT_DECAY
+results_path = 'results'
 
 def _get_image_blob(im):
   """Converts an image into a network input.
@@ -166,11 +167,7 @@ if __name__ == '__main__':
     'faster_rcnn_{}_{}_{}.pth'.format(args.checksession, args.checkepoch, args.checkpoint))
 
   pascal_classes = np.asarray(['__background__',
-                       'aeroplane', 'bicycle', 'bird', 'boat',
-                       'bottle', 'bus', 'car', 'cat', 'chair',
-                       'cow', 'diningtable', 'dog', 'horse',
-                       'motorbike', 'person', 'pottedplant',
-                       'sheep', 'sofa', 'train', 'tvmonitor'])
+                       'button'])
 
   # initilize the network here.
   if args.net == 'vgg16':
@@ -231,7 +228,7 @@ if __name__ == '__main__':
   fasterRCNN.eval()
 
   start = time.time()
-  max_per_image = 100
+  max_per_image = 1000
   thresh = 0.05
   vis = True
 
@@ -364,7 +361,7 @@ if __name__ == '__main__':
       if vis and webcam_num == -1:
           # cv2.imshow('test', im2show)
           # cv2.waitKey(0)
-          result_path = os.path.join(args.image_dir, imglist[num_images][:-4] + "_det.jpg")
+          result_path = os.path.join(results_path, imglist[num_images][:-4] + "_det.jpg")
           cv2.imwrite(result_path, im2show)
       else:
           im2showRGB = cv2.cvtColor(im2show, cv2.COLOR_BGR2RGB)

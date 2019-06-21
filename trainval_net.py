@@ -15,10 +15,12 @@ import argparse
 import pprint
 import pdb
 import time
+import datetime
 
 import torch
 from torch.autograd import Variable
 import torch.nn as nn
+import matplotlib.pyplot as plt
 import torch.optim as optim
 
 import torchvision.transforms as transforms
@@ -43,13 +45,13 @@ def parse_args():
                       default='pascal_voc', type=str)
   parser.add_argument('--net', dest='net',
                     help='vgg16, res101',
-                    default='vgg16', type=str)
+                    default='res101', type=str)
   parser.add_argument('--start_epoch', dest='start_epoch',
                       help='starting epoch',
                       default=1, type=int)
   parser.add_argument('--epochs', dest='max_epochs',
                       help='number of epochs to train',
-                      default=20, type=int)
+                      default=100, type=int)
   parser.add_argument('--disp_interval', dest='disp_interval',
                       help='number of iterations to display',
                       default=100, type=int)
@@ -74,7 +76,7 @@ def parse_args():
                       action='store_true')
   parser.add_argument('--bs', dest='batch_size',
                       help='batch_size',
-                      default=1, type=int)
+                      default=8, type=int)
   parser.add_argument('--cag', dest='class_agnostic',
                       help='whether perform class_agnostic bbox regression',
                       action='store_true')
@@ -85,18 +87,18 @@ def parse_args():
                       default="sgd", type=str)
   parser.add_argument('--lr', dest='lr',
                       help='starting learning rate',
-                      default=0.001, type=float)
+                      default=1e-2, type=float)
   parser.add_argument('--lr_decay_step', dest='lr_decay_step',
                       help='step to do learning rate decay, unit is epoch',
-                      default=5, type=int)
+                      default=9, type=int)
   parser.add_argument('--lr_decay_gamma', dest='lr_decay_gamma',
                       help='learning rate decay ratio',
-                      default=0.1, type=float)
+                      default=5e-1, type=float)
 
 # set training session
   parser.add_argument('--s', dest='session',
                       help='training session',
-                      default=1, type=int)
+                      default=6, type=int)
 
 # resume trained model
   parser.add_argument('--r', dest='resume',
@@ -155,7 +157,7 @@ if __name__ == '__main__':
   if args.dataset == "pascal_voc":
       args.imdb_name = "voc_2007_trainval"
       args.imdbval_name = "voc_2007_test"
-      args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '20']
+      args.set_cfgs = ['ANCHOR_SCALES', '[4,8,16,32]', 'ANCHOR_RATIOS', '[.5,1,2,3]', 'MAX_NUM_GT_BOXES', '40']
   elif args.dataset == "pascal_voc_0712":
       args.imdb_name = "voc_2007_trainval+voc_2012_trainval"
       args.imdbval_name = "voc_2007_test"
@@ -192,7 +194,7 @@ if __name__ == '__main__':
 
   # train set
   # -- Note: Use validation set and disable the flipped to enable faster loading.
-  cfg.TRAIN.USE_FLIPPED = True
+  cfg.TRAIN.USE_FLIPPED = False
   cfg.USE_GPU_NMS = args.cuda
   imdb, roidb, ratio_list, ratio_index = combined_roidb(args.imdb_name)
   train_size = len(roidb)
@@ -216,7 +218,8 @@ if __name__ == '__main__':
   im_info = torch.FloatTensor(1)
   num_boxes = torch.LongTensor(1)
   gt_boxes = torch.FloatTensor(1)
-
+  best_loss = float('inf')
+  save = False
   # ship to cuda
   if args.cuda:
     im_data = im_data.cuda()
@@ -294,7 +297,9 @@ if __name__ == '__main__':
   if args.use_tfboard:
     from tensorboardX import SummaryWriter
     logger = SummaryWriter("logs")
-
+  losses = []
+  fgs = []
+  bgs = []
   for epoch in range(args.start_epoch, args.max_epochs + 1):
     # setting to train mode
     fasterRCNN.train()
@@ -313,7 +318,6 @@ if __name__ == '__main__':
               im_info.resize_(data[1].size()).copy_(data[1])
               gt_boxes.resize_(data[2].size()).copy_(data[2])
               num_boxes.resize_(data[3].size()).copy_(data[3])
-
       fasterRCNN.zero_grad()
       rois, cls_prob, bbox_pred, \
       rpn_loss_cls, rpn_loss_box, \
@@ -322,8 +326,8 @@ if __name__ == '__main__':
 
       loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
            + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()
+      
       loss_temp += loss.item()
-
       # backward
       optimizer.zero_grad()
       loss.backward()
@@ -335,7 +339,6 @@ if __name__ == '__main__':
         end = time.time()
         if step > 0:
           loss_temp /= (args.disp_interval + 1)
-
         if args.mGPUs:
           loss_rpn_cls = rpn_loss_cls.mean().item()
           loss_rpn_box = rpn_loss_box.mean().item()
@@ -356,6 +359,9 @@ if __name__ == '__main__':
         print("\t\t\tfg/bg=(%d/%d), time cost: %f" % (fg_cnt, bg_cnt, end-start))
         print("\t\t\trpn_cls: %.4f, rpn_box: %.4f, rcnn_cls: %.4f, rcnn_box %.4f" \
                       % (loss_rpn_cls, loss_rpn_box, loss_rcnn_cls, loss_rcnn_box))
+        losses.append(loss_temp)
+        fgs.append(fg_cnt)
+        bgs.append(bg_cnt)
         if args.use_tfboard:
           info = {
             'loss': loss_temp,
@@ -365,21 +371,41 @@ if __name__ == '__main__':
             'loss_rcnn_box': loss_rcnn_box
           }
           logger.add_scalars("logs_s_{}/losses".format(args.session), info, (epoch - 1) * iters_per_epoch + step)
-
+        print("eta: {}".format(str(datetime.timedelta(seconds=((end-start)*iters_per_epoch * (args.max_epochs + 1 - args.start_epoch - epoch))))))
+        if loss_temp < best_loss:
+            best_loss = loss_temp
+            save = True
         loss_temp = 0
         start = time.time()
 
-    
-    save_name = os.path.join(output_dir, 'faster_rcnn_{}_{}_{}.pth'.format(args.session, epoch, step))
-    save_checkpoint({
-      'session': args.session,
-      'epoch': epoch + 1,
-      'model': fasterRCNN.module.state_dict() if args.mGPUs else fasterRCNN.state_dict(),
-      'optimizer': optimizer.state_dict(),
-      'pooling_mode': cfg.POOLING_MODE,
-      'class_agnostic': args.class_agnostic,
-    }, save_name)
-    print('save model: {}'.format(save_name))
+    if save or epoch % 10 == 0:
+        save_name = os.path.join(output_dir, 'faster_rcnn_{}_{}_{}.pth'.format(args.session, epoch, step))
+        save_checkpoint({
+          'session': args.session,
+          'epoch': epoch + 1,
+          'model': fasterRCNN.module.state_dict() if args.mGPUs else fasterRCNN.state_dict(),
+          'optimizer': optimizer.state_dict(),
+          'pooling_mode': cfg.POOLING_MODE,
+          'class_agnostic': args.class_agnostic,
+        }, save_name)
+        print('save model: {}'.format(save_name))
+        save = False
+
+  plt.figure(1)
+  plt.plot(losses)
+  plt.xlabel('epochs')
+  plt.ylabel('total loss')
+  plt.title('loss vs steps')
+  plt.axhline(y=best_loss, color='r', linestyle='--')
+  plt.savefig('loss.png')
+  plt.figure(2)
+  plt.plot(fgs)
+  plt.plot(bgs)
+  plt.xlabel('epochs')
+  plt.ylabel('fg/bg')
+  plt.title('fg/bg vs. epochs')
+  plt.axhline(y=float(args.batch_size*cfg.TRAIN.BATCH_SIZE)/4, color='r', linestyle='--')
+  plt.savefig('fgbg.png')
 
   if args.use_tfboard:
     logger.close()

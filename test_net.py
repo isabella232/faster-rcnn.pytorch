@@ -50,7 +50,7 @@ def parse_args():
                       default='pascal_voc', type=str)
   parser.add_argument('--cfg', dest='cfg_file',
                       help='optional config file',
-                      default='cfgs/vgg16.yml', type=str)
+                      default='cfgs/res101.yml', type=str)
   parser.add_argument('--net', dest='net',
                       help='vgg16, res50, res101, res152',
                       default='res101', type=str)
@@ -77,13 +77,13 @@ def parse_args():
                       default=0, type=int)
   parser.add_argument('--checksession', dest='checksession',
                       help='checksession to load model',
-                      default=1, type=int)
+                      default=6, type=int)
   parser.add_argument('--checkepoch', dest='checkepoch',
                       help='checkepoch to load network',
-                      default=1, type=int)
+                      default=80, type=int)
   parser.add_argument('--checkpoint', dest='checkpoint',
                       help='checkpoint to load network',
-                      default=10021, type=int)
+                      default=9, type=int)
   parser.add_argument('--vis', dest='vis',
                       help='visualization mode',
                       action='store_true')
@@ -107,8 +107,8 @@ if __name__ == '__main__':
   np.random.seed(cfg.RNG_SEED)
   if args.dataset == "pascal_voc":
       args.imdb_name = "voc_2007_trainval"
-      args.imdbval_name = "voc_2007_test"
-      args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]']
+      args.imdbval_name = "voc_2007_trainval"
+      args.set_cfgs = ['ANCHOR_SCALES', '[4,8,16,32]', 'ANCHOR_RATIOS', '[.5,1,2,3]']
   elif args.dataset == "pascal_voc_0712":
       args.imdb_name = "voc_2007_trainval+voc_2012_trainval"
       args.imdbval_name = "voc_2007_test"

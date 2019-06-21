@@ -1,6 +1,5 @@
 data/*
-
-# READ THIS BEFORE YOU REFACTOR ME
+ READ THIS BEFORE YOU REFACTOR ME
 #
 # setup.py uses the list of patterns in this file to decide
 # what to delete, but it's not 100% sound.  So, for example,
@@ -9,7 +8,11 @@ data/*
 # refactoring this file!
 
 ## PyTorch
-
+models/*
+images/*
+results/*
+output/*
+test/*
 .mypy_cache
 *.pyc
 */*.pyc

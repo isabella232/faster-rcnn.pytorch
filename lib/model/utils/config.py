@@ -70,13 +70,13 @@ __C.TRAIN.TRIM_HEIGHT = 600
 __C.TRAIN.TRIM_WIDTH = 600
 
 # Images to use per minibatch
-__C.TRAIN.IMS_PER_BATCH = 1
+__C.TRAIN.IMS_PER_BATCH = 1 
 
 # Minibatch size (number of regions of interest [ROIs])
-__C.TRAIN.BATCH_SIZE = 128
+__C.TRAIN.BATCH_SIZE = 128 #was 128
 
 # Fraction of minibatch that is labeled foreground (i.e. class > 0)
-__C.TRAIN.FG_FRACTION = 0.25
+__C.TRAIN.FG_FRACTION = 0.5 #was 0.25
 
 # Overlap threshold for a ROI to be considered foreground (if >= FG_THRESH)
 __C.TRAIN.FG_THRESH = 0.5
@@ -87,10 +87,10 @@ __C.TRAIN.BG_THRESH_HI = 0.5
 __C.TRAIN.BG_THRESH_LO = 0.1
 
 # Use horizontally-flipped images during training?
-__C.TRAIN.USE_FLIPPED = True
+__C.TRAIN.USE_FLIPPED = False #was True
 
 # Train bounding-box regressors
-__C.TRAIN.BBOX_REG = True
+__C.TRAIN.BBOX_REG = True #was True
 
 # Overlap required between a ROI and ground-truth box in order for that ROI to
 # be used as a bounding-box regression training example
@@ -134,17 +134,17 @@ __C.TRAIN.RPN_NEGATIVE_OVERLAP = 0.3
 # If an anchor statisfied by positive and negative conditions set to negative
 __C.TRAIN.RPN_CLOBBER_POSITIVES = False
 # Max number of foreground examples
-__C.TRAIN.RPN_FG_FRACTION = 0.5
+__C.TRAIN.RPN_FG_FRACTION = 0.8
 # Total number of examples
 __C.TRAIN.RPN_BATCHSIZE = 256
 # NMS threshold used on RPN proposals
-__C.TRAIN.RPN_NMS_THRESH = 0.7
+__C.TRAIN.RPN_NMS_THRESH = 0.7 #was 0.7
 # Number of top scoring boxes to keep before apply NMS to RPN proposals
 __C.TRAIN.RPN_PRE_NMS_TOP_N = 12000
 # Number of top scoring boxes to keep after applying NMS to RPN proposals
 __C.TRAIN.RPN_POST_NMS_TOP_N = 2000
 # Proposal height and width both need to be greater than RPN_MIN_SIZE (at orig image scale)
-__C.TRAIN.RPN_MIN_SIZE = 8
+__C.TRAIN.RPN_MIN_SIZE = 4 #was 16
 # Deprecated (outside weights)
 __C.TRAIN.RPN_BBOX_INSIDE_WEIGHTS = (1.0, 1.0, 1.0, 1.0)
 # Give the positive RPN examples weight of p * 1 / {num positives}
@@ -156,7 +156,7 @@ __C.TRAIN.RPN_POSITIVE_WEIGHT = -1.0
 __C.TRAIN.USE_ALL_GT = True
 
 # Whether to tune the batch normalization parameters during training
-__C.TRAIN.BN_TRAIN = False
+__C.TRAIN.BN_TRAIN = False #was False
 
 #
 # Testing options
@@ -172,14 +172,14 @@ __C.TEST.MAX_SIZE = 1000
 
 # Overlap threshold used for non-maximum suppression (suppress boxes with
 # IoU >= this threshold)
-__C.TEST.NMS = 0.3
+__C.TEST.NMS = 0.35
 
 # Experimental: treat the (K+1) units in the cls_score layer as linear
 # predictors (trained, eg, with one-vs-rest SVMs).
 __C.TEST.SVM = False
 
 # Test using bounding-box regressors
-__C.TEST.BBOX_REG = True
+__C.TEST.BBOX_REG = True #was True
 
 # Propose boxes
 __C.TEST.HAS_RPN = False
@@ -193,10 +193,10 @@ __C.TEST.RPN_NMS_THRESH = 0.7
 __C.TEST.RPN_PRE_NMS_TOP_N = 6000
 
 ## Number of top scoring boxes to keep after applying NMS to RPN proposals
-__C.TEST.RPN_POST_NMS_TOP_N = 300
+__C.TEST.RPN_POST_NMS_TOP_N = 200
 
 # Proposal height and width both need to be greater than RPN_MIN_SIZE (at orig image scale)
-__C.TEST.RPN_MIN_SIZE = 16
+__C.TEST.RPN_MIN_SIZE = 4 #was 16
 
 # Testing mode, default to be 'nms', 'top' is slower but better
 # See report for details
@@ -215,11 +215,11 @@ __C.RESNET = edict()
 # if true, the region will be resized to a square of 2xPOOLING_SIZE,
 # then 2x2 max-pooling is applied; otherwise the region will be directly
 # resized to a square of POOLING_SIZE
-__C.RESNET.MAX_POOL = False
+__C.RESNET.MAX_POOL = False #was False
 
 # Number of fixed blocks during training, by default the first of all 4 blocks is fixed
 # Range: 0 (none) to 3 (all)
-__C.RESNET.FIXED_BLOCKS = 1
+__C.RESNET.FIXED_BLOCKS = 1 #was 1
 
 #
 # MobileNet options
@@ -232,7 +232,7 @@ __C.MOBILENET.REGU_DEPTH = False
 
 # Number of fixed layers during training, by default the first of all 14 layers is fixed
 # Range: 0 (none) to 12 (all)
-__C.MOBILENET.FIXED_LAYERS = 5
+__C.MOBILENET.FIXED_LAYERS = 3 #was 5
 
 # Weight decay for the mobilenet weights
 __C.MOBILENET.WEIGHT_DECAY = 0.00004
@@ -254,7 +254,7 @@ __C.DEDUP_BOXES = 1. / 16.
 # Pixel mean values (BGR order) as a (1, 1, 3) array
 # We use the same pixel mean for all networks even though it's not exactly what
 # they were trained with
-__C.PIXEL_MEANS = np.array([[[102.9801, 115.9465, 122.7717]]])
+__C.PIXEL_MEANS = np.array([[[197.83309919485896, 194.63057218557924, 192.07722788928083]]]) #recalculate using script
 
 # For reproducibility
 __C.RNG_SEED = 3
@@ -286,20 +286,20 @@ __C.POOLING_MODE = 'crop'
 __C.POOLING_SIZE = 7
 
 # Maximal number of gt rois in an image during Training
-__C.MAX_NUM_GT_BOXES = 20
+__C.MAX_NUM_GT_BOXES = 40 #was 20
 
 # Anchor scales for RPN
-__C.ANCHOR_SCALES = [8,16,32]
+__C.ANCHOR_SCALES = [4,8,16,32]
 
 # Anchor ratios for RPN
-__C.ANCHOR_RATIOS = [0.5,1,2]
+__C.ANCHOR_RATIOS = [0.5,1,2,3]
 
 # Feature stride for RPN
-__C.FEAT_STRIDE = [16, ]
+__C.FEAT_STRIDE = [16, ] #was 16
 
 __C.CUDA = False
 
-__C.CROP_RESIZE_WITH_MAX_POOL = True
+__C.CROP_RESIZE_WITH_MAX_POOL = False #was true
 
 import pdb
 def get_output_dir(imdb, weights_filename):

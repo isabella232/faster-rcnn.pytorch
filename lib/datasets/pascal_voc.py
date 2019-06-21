@@ -45,14 +45,9 @@ class pascal_voc(imdb):
         self._devkit_path = self._get_default_path() if devkit_path is None \
             else devkit_path
         self._data_path = os.path.join(self._devkit_path, 'VOC' + self._year)
-        self._classes = ('__background__',  # always index 0
-                         'aeroplane', 'bicycle', 'bird', 'boat',
-                         'bottle', 'bus', 'car', 'cat', 'chair',
-                         'cow', 'diningtable', 'dog', 'horse',
-                         'motorbike', 'person', 'pottedplant',
-                         'sheep', 'sofa', 'train', 'tvmonitor')
+        self._classes = ('__background__',  'button')
         self._class_to_ind = dict(zip(self.classes, xrange(self.num_classes)))
-        self._image_ext = '.jpg'
+        self._image_ext = '.png'
         self._image_index = self._load_image_set_index()
         # Default to roidb handler
         # self._roidb_handler = self.selective_search_roidb
@@ -66,7 +61,7 @@ class pascal_voc(imdb):
                        'use_diff': False,
                        'matlab_eval': False,
                        'rpn_file': None,
-                       'min_size': 2}
+                       'min_size': 1}
 
         assert os.path.exists(self._devkit_path), \
             'VOCdevkit path does not exist: {}'.format(self._devkit_path)
@@ -210,14 +205,12 @@ class pascal_voc(imdb):
         filename = os.path.join(self._data_path, 'Annotations', index + '.xml')
         tree = ET.parse(filename)
         objs = tree.findall('object')
-        # if not self.config['use_diff']:
+        if not self.config['use_diff']:
         #     # Exclude the samples labeled as difficult
-        #     non_diff_objs = [
-        #         obj for obj in objs if int(obj.find('difficult').text) == 0]
-        #     # if len(non_diff_objs) != len(objs):
-        #     #     print 'Removed {} difficult objects'.format(
-        #     #         len(objs) - len(non_diff_objs))
-        #     objs = non_diff_objs
+            non_diff_objs = [obj for obj in objs if int(obj.find('difficult').text) == 0]
+            if len(non_diff_objs) != len(objs):
+                print(('Removed {} difficult objects').format(len(objs) - len(non_diff_objs)))
+            objs = non_diff_objs
         num_objs = len(objs)
 
         boxes = np.zeros((num_objs, 4), dtype=np.uint16)
@@ -230,21 +223,35 @@ class pascal_voc(imdb):
         # Load object bounding boxes into a data frame.
         for ix, obj in enumerate(objs):
             bbox = obj.find('bndbox')
+            if (bbox is None):
+                continue
             # Make pixel indexes 0-based
-            x1 = float(bbox.find('xmin').text) - 1
-            y1 = float(bbox.find('ymin').text) - 1
-            x2 = float(bbox.find('xmax').text) - 1
-            y2 = float(bbox.find('ymax').text) - 1
-
+            x1 = min(max(float(bbox.find('xmin').text) - 1, 0),999)
+            y1 = min(max(float(bbox.find('ymin').text) - 1, 0),999)
+            x2 = min(max(float(bbox.find('xmax').text) - 1, 0),999)
+            y2 = min(max(float(bbox.find('ymax').text) - 1, 0),999)
+            if x1 > x2:
+                swap = x2
+                x2 = x1
+                x1 = swap
+                bbox.find('xmin').text = x1
+                bbox.find('xmax').text = x2
+            if y1 > y2:
+                swap = y2
+                y2 = y1
+                y1= swap
+                bbox.find('ymin').text = y1
+                bbox.find('ymax').text = y2
             diffc = obj.find('difficult')
             difficult = 0 if diffc == None else int(diffc.text)
             ishards[ix] = difficult
 
             cls = self._class_to_ind[obj.find('name').text.lower().strip()]
             boxes[ix, :] = [x1, y1, x2, y2]
+            print(boxes)
             gt_classes[ix] = cls
             overlaps[ix, cls] = 1.0
-            seg_areas[ix] = (x2 - x1 + 1) * (y2 - y1 + 1)
+            seg_areas[ix] = (x2 - x1 + 1) * (y2 - y1 + 1) ##MAYBE CHANGE
 
         overlaps = scipy.sparse.csr_matrix(overlaps)
 
