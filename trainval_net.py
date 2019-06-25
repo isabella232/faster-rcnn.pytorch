@@ -93,7 +93,7 @@ def parse_args():
                       default=3, type=int)
   parser.add_argument('--lr_decay_gamma', dest='lr_decay_gamma',
                       help='learning rate decay ratio',
-                      default=2e-1, type=float)
+                      default=5e-1, type=float)
 
 # set training session
   parser.add_argument('--s', dest='session',
@@ -157,7 +157,7 @@ if __name__ == '__main__':
   if args.dataset == "pascal_voc":
       args.imdb_name = "voc_2007_trainval"
       args.imdbval_name = "voc_2007_test"
-      args.set_cfgs = ['ANCHOR_SCALES', '[8,16,32,48]', 'ANCHOR_RATIOS', '[.5,1,2,3]', 'MAX_NUM_GT_BOXES', '20']
+      args.set_cfgs = ['ANCHOR_SCALES', '[4,8,16,32,48]', 'ANCHOR_RATIOS', '[.5,1,2,3]', 'MAX_NUM_GT_BOXES', '20']
   elif args.dataset == "pascal_voc_0712":
       args.imdb_name = "voc_2007_trainval+voc_2012_trainval"
       args.imdbval_name = "voc_2007_test"
@@ -301,7 +301,10 @@ if __name__ == '__main__':
   fgs = []
   bgs = []
   for epoch in range(args.start_epoch, args.max_epochs + 1):
+    save = False
     total_loss = 0
+    fg_cnt = 0
+    bg_cnt = 0
     # setting to train mode
     fasterRCNN.train()
     loss_temp = 0
@@ -345,8 +348,8 @@ if __name__ == '__main__':
           loss_rpn_box = rpn_loss_box.mean().item()
           loss_rcnn_cls = RCNN_loss_cls.mean().item()
           loss_rcnn_box = RCNN_loss_bbox.mean().item()
-          fg_cnt = torch.sum(rois_label.data.ne(0))
-          bg_cnt = rois_label.data.numel() - fg_cnt
+          fg_cnt += torch.sum(rois_label.data.ne(0))
+          bg_cnt += rois_label.data.numel() - fg_cnt
         else:
           loss_rpn_cls = rpn_loss_cls.item()
           loss_rpn_box = rpn_loss_box.item()
@@ -360,9 +363,6 @@ if __name__ == '__main__':
         print("\t\t\tfg/bg=(%d/%d), time cost: %f" % (fg_cnt, bg_cnt, end-start))
         print("\t\t\trpn_cls: %.4f, rpn_box: %.4f, rcnn_cls: %.4f, rcnn_box %.4f" \
                       % (loss_rpn_cls, loss_rpn_box, loss_rcnn_cls, loss_rcnn_box))
-        losses.append(loss_temp)
-        fgs.append(fg_cnt)
-        bgs.append(bg_cnt)
         if args.use_tfboard:
           info = {
             'loss': loss_temp,
@@ -375,7 +375,7 @@ if __name__ == '__main__':
         if step > 0:
             time_per_step = (end-start)/args.disp_interval
             time_left_epoch = (iters_per_epoch - step) * time_per_step
-            epochs_left = args.max_epochs - args.start_epoch - epoch
+            epochs_left = args.max_epochs - args.start_epoch - epoch + 1
             time_left = time_left_epoch + epochs_left * (time_per_step * iters_per_epoch)
             print("eta: {}".format(str(datetime.timedelta(seconds=time_left))))
         else:
@@ -383,9 +383,12 @@ if __name__ == '__main__':
         loss_temp = 0
         start = time.time()
     if step >= iters_per_epoch - 1:
-        if total_loss / iters_per_epoch <= best_loss:
+        total_loss = total_loss / iters_per_epoch
+        if total_loss < best_loss:
+            best_loss = total_loss
             save = True
-        print("loss for the epoch is: {}".format(total_loss/iters_per_epoch))
+        print("loss for the epoch is: {}".format(total_loss))
+        losses.append(total_loss)
     if save or epoch % 10 == 0:
         save_name = os.path.join(output_dir, 'faster_rcnn_{}_{}_{}.pth'.format(args.session, epoch, step))
         save_checkpoint({
@@ -406,14 +409,6 @@ if __name__ == '__main__':
   plt.title('loss vs steps')
   plt.axhline(y=best_loss, color='r', linestyle='--')
   plt.savefig('loss.png')
-  plt.figure(2)
-  plt.plot(fgs)
-  plt.plot(bgs)
-  plt.xlabel('epochs')
-  plt.ylabel('fg/bg')
-  plt.title('fg/bg vs. epochs')
-  plt.axhline(y=float(args.batch_size*cfg.TRAIN.BATCH_SIZE)/4, color='r', linestyle='--')
-  plt.savefig('fgbg.png')
 
   if args.use_tfboard:
     logger.close()
