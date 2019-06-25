@@ -52,6 +52,6 @@ def prep_im_for_blob(im, pixel_means, target_size, max_size):
     #     im_scale = float(max_size) / float(im_size_max)
     # im = imresize(im, im_scale)
     im = cv2.resize(im, None, None, fx=im_scale, fy=im_scale,
-                    interpolation=cv2.INTER_LINEAR)
+                    interpolation=cv2.INTER_CUBIC)
 
     return im, im_scale

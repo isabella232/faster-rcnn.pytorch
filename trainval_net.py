@@ -51,10 +51,10 @@ def parse_args():
                       default=1, type=int)
   parser.add_argument('--epochs', dest='max_epochs',
                       help='number of epochs to train',
-                      default=100, type=int)
+                      default=20, type=int)
   parser.add_argument('--disp_interval', dest='disp_interval',
                       help='number of iterations to display',
-                      default=100, type=int)
+                      default=32, type=int)
   parser.add_argument('--checkpoint_interval', dest='checkpoint_interval',
                       help='number of iterations to display',
                       default=10000, type=int)
@@ -76,7 +76,7 @@ def parse_args():
                       action='store_true')
   parser.add_argument('--bs', dest='batch_size',
                       help='batch_size',
-                      default=8, type=int)
+                      default=6, type=int)
   parser.add_argument('--cag', dest='class_agnostic',
                       help='whether perform class_agnostic bbox regression',
                       action='store_true')
@@ -90,15 +90,15 @@ def parse_args():
                       default=1e-2, type=float)
   parser.add_argument('--lr_decay_step', dest='lr_decay_step',
                       help='step to do learning rate decay, unit is epoch',
-                      default=9, type=int)
+                      default=3, type=int)
   parser.add_argument('--lr_decay_gamma', dest='lr_decay_gamma',
                       help='learning rate decay ratio',
-                      default=5e-1, type=float)
+                      default=2e-1, type=float)
 
 # set training session
   parser.add_argument('--s', dest='session',
                       help='training session',
-                      default=6, type=int)
+                      default=7, type=int)
 
 # resume trained model
   parser.add_argument('--r', dest='resume',
@@ -157,7 +157,7 @@ if __name__ == '__main__':
   if args.dataset == "pascal_voc":
       args.imdb_name = "voc_2007_trainval"
       args.imdbval_name = "voc_2007_test"
-      args.set_cfgs = ['ANCHOR_SCALES', '[4,8,16,32]', 'ANCHOR_RATIOS', '[.5,1,2,3]', 'MAX_NUM_GT_BOXES', '40']
+      args.set_cfgs = ['ANCHOR_SCALES', '[8,16,32,48]', 'ANCHOR_RATIOS', '[.5,1,2,3]', 'MAX_NUM_GT_BOXES', '20']
   elif args.dataset == "pascal_voc_0712":
       args.imdb_name = "voc_2007_trainval+voc_2012_trainval"
       args.imdbval_name = "voc_2007_test"
@@ -301,6 +301,7 @@ if __name__ == '__main__':
   fgs = []
   bgs = []
   for epoch in range(args.start_epoch, args.max_epochs + 1):
+    total_loss = 0
     # setting to train mode
     fasterRCNN.train()
     loss_temp = 0
@@ -326,7 +327,7 @@ if __name__ == '__main__':
 
       loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
            + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()
-      
+      total_loss += loss.item()
       loss_temp += loss.item()
       # backward
       optimizer.zero_grad()
@@ -371,13 +372,20 @@ if __name__ == '__main__':
             'loss_rcnn_box': loss_rcnn_box
           }
           logger.add_scalars("logs_s_{}/losses".format(args.session), info, (epoch - 1) * iters_per_epoch + step)
-        print("eta: {}".format(str(datetime.timedelta(seconds=((end-start)*iters_per_epoch * (args.max_epochs + 1 - args.start_epoch - epoch))))))
-        if loss_temp < best_loss:
-            best_loss = loss_temp
-            save = True
+        if step > 0:
+            time_per_step = (end-start)/args.disp_interval
+            time_left_epoch = (iters_per_epoch - step) * time_per_step
+            epochs_left = args.max_epochs - args.start_epoch - epoch
+            time_left = time_left_epoch + epochs_left * (time_per_step * iters_per_epoch)
+            print("eta: {}".format(str(datetime.timedelta(seconds=time_left))))
+        else:
+            print("eta: {}".format(str(datetime.timedelta(seconds=((end-start)*iters_per_epoch * (args.max_epochs + 1 - args.start_epoch - epoch))))))
         loss_temp = 0
         start = time.time()
-
+    if step >= iters_per_epoch - 1:
+        if total_loss / iters_per_epoch <= best_loss:
+            save = True
+        print("loss for the epoch is: {}".format(total_loss/iters_per_epoch))
     if save or epoch % 10 == 0:
         save_name = os.path.join(output_dir, 'faster_rcnn_{}_{}_{}.pth'.format(args.session, epoch, step))
         save_checkpoint({
