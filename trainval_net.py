@@ -51,7 +51,7 @@ def parse_args():
                       default=1, type=int)
   parser.add_argument('--epochs', dest='max_epochs',
                       help='number of epochs to train',
-                      default=20, type=int)
+                      default=30, type=int)
   parser.add_argument('--disp_interval', dest='disp_interval',
                       help='number of iterations to display',
                       default=32, type=int)
@@ -90,7 +90,7 @@ def parse_args():
                       default=1e-2, type=float)
   parser.add_argument('--lr_decay_step', dest='lr_decay_step',
                       help='step to do learning rate decay, unit is epoch',
-                      default=3, type=int)
+                      default=5, type=int)
   parser.add_argument('--lr_decay_gamma', dest='lr_decay_gamma',
                       help='learning rate decay ratio',
                       default=5e-1, type=float)
@@ -157,7 +157,7 @@ if __name__ == '__main__':
   if args.dataset == "pascal_voc":
       args.imdb_name = "voc_2007_trainval"
       args.imdbval_name = "voc_2007_test"
-      args.set_cfgs = ['ANCHOR_SCALES', '[4,8,16,32,48]', 'ANCHOR_RATIOS', '[.5,1,2,3]', 'MAX_NUM_GT_BOXES', '20']
+      args.set_cfgs = ['ANCHOR_SCALES', '[4,8,16,32]', 'ANCHOR_RATIOS', '[.5,1,2,3]', 'MAX_NUM_GT_BOXES', '40']
   elif args.dataset == "pascal_voc_0712":
       args.imdb_name = "voc_2007_trainval+voc_2012_trainval"
       args.imdbval_name = "voc_2007_test"
@@ -379,7 +379,7 @@ if __name__ == '__main__':
             time_left = time_left_epoch + epochs_left * (time_per_step * iters_per_epoch)
             print("eta: {}".format(str(datetime.timedelta(seconds=time_left))))
         else:
-            print("eta: {}".format(str(datetime.timedelta(seconds=((end-start)*iters_per_epoch * (args.max_epochs + 1 - args.start_epoch - epoch))))))
+            print("eta: {}".format(str(datetime.timedelta(seconds=((end-start)*iters_per_epoch * (args.max_epochs + 2 - epoch))))))
         loss_temp = 0
         start = time.time()
     if step >= iters_per_epoch - 1:
